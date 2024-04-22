@@ -98,6 +98,8 @@ export const Chat = ({ qa }) => {
       voiceRecognitionRef.current.start();
       setIsListening(true);
       setShowLoadingBubble(true);
+      setTranscript('');
+      setAnswer('');
     } else {
       voiceRecognitionRef.current.stop();
       setIsListening(false);
