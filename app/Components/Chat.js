@@ -1,8 +1,9 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 import Image from 'next/image';
 import characterOne from '../../public/images/characters/Character1.png';
 import characterTwo from '../../public/images/characters/Character2.png';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { MdKeyboardVoice } from 'react-icons/md';
 
 export const Chat = ({ qa }) => {
@@ -10,23 +11,20 @@ export const Chat = ({ qa }) => {
   const [isListening, setIsListening] = useState(false);
   const [answer, setAnswer] = useState('');
   const [showLoadingBubble, setShowLoadingBubble] = useState(false);
-  const talkBack = window.speechSynthesis;
+  const talkBack = typeof window !== 'undefined' && window.speechSynthesis;
   const voiceRecognitionRef = useRef(null);
 
-  // const SpeechRecognition =
-  //   window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  const initializeSpeechRecognition = () => {
+  const initializeSpeechRecognition = useCallback(() => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       console.error(
-        'This Browser does not support Speech Recoginition. Try some other browser.'
+        'This Browser does not support Speech Recognition. Try some other browser.'
       );
       return;
     }
     const voiceRecognition = new SpeechRecognition();
-    voiceRecognition.continous = true;
+    // voiceRecognition.continuous = true;
     voiceRecognition.language = 'en-US';
     voiceRecognition.onstart = () => {
       console.log('Voice Recognition Started');
@@ -47,7 +45,7 @@ export const Chat = ({ qa }) => {
     };
     voiceRecognition.onresult = handleChat;
     voiceRecognitionRef.current = voiceRecognition;
-  };
+  }, []);
 
   useEffect(() => {
     initializeSpeechRecognition();
@@ -56,19 +54,18 @@ export const Chat = ({ qa }) => {
         voiceRecognitionRef.current.stop();
       }
     };
-  }, []);
+  }, [initializeSpeechRecognition, isListening]);
 
   const handleChat = (e) => {
     const results = e.results;
-    const latestResult = results[results.length - 1]; // Get the latest result
-
+    const latestResult = results[results.length - 1];
     if (latestResult.isFinal) {
       const question = latestResult[0].transcript.trim().toLowerCase();
       const answer = qa[question];
 
       setTranscript(question);
       console.log(question, 'QUESTION');
-      console.log(transcript, 'Transcipt');
+      console.log(transcript, 'Transcript');
 
       if (answer) {
         setAnswer(answer);
