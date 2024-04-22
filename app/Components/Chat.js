@@ -52,31 +52,37 @@ export const Chat = ({ qa }) => {
   useEffect(() => {
     initializeSpeechRecognition();
     return () => {
-      if (voiceRecognitionRef.current) {
+      if (voiceRecognitionRef.current && isListening) {
         voiceRecognitionRef.current.stop();
       }
     };
   }, []);
 
   const handleChat = (e) => {
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) {
-        const question = e.results[i][0].transcript.trim().toLowerCase();
-        const answer = qa[question];
-        setTranscript(question);
-        console.log(question, 'QUESTION');
-        console.log(transcript, 'Transcipt');
-        if (answer) {
-          setAnswer(answer);
-          speak(answer);
-          console.log(answer, 'ANSWER');
-        } else {
-          setAnswer(
-            'Try Again. Make you sound loud and environment is noise free'
-          );
-          speak('Voice is not audible or recognized');
-        }
-        setShowLoadingBubble(false);
+    const results = e.results;
+    const latestResult = results[results.length - 1]; // Get the latest result
+
+    if (latestResult.isFinal) {
+      const question = latestResult[0].transcript.trim().toLowerCase();
+      const answer = qa[question];
+
+      setTranscript(question);
+      console.log(question, 'QUESTION');
+      console.log(transcript, 'Transcipt');
+
+      if (answer) {
+        setAnswer(answer);
+        speak(answer);
+        console.log(answer, 'ANSWER');
+      } else {
+        setAnswer(
+          'Try Again. Make sure your voice is loud and the environment is noise-free'
+        );
+        speak('Voice is not audible or recognized');
+      }
+      setShowLoadingBubble(false);
+      if (isListening) {
+        voiceRecognitionRef.current.start();
       }
     }
   };
@@ -91,14 +97,14 @@ export const Chat = ({ qa }) => {
   };
 
   const toggleListen = () => {
-    if (isListening) {
-      voiceRecognitionRef.current.stop();
-      setIsListening(false);
-      setShowLoadingBubble(false);
-    } else {
+    if (!isListening) {
       voiceRecognitionRef.current.start();
       setIsListening(true);
       setShowLoadingBubble(true);
+    } else {
+      voiceRecognitionRef.current.stop();
+      setIsListening(false);
+      setShowLoadingBubble(false);
     }
   };
 
@@ -109,27 +115,37 @@ export const Chat = ({ qa }) => {
           Voice Chat Buddy
         </h1>
         <button onClick={toggleListen}>
-          <MdKeyboardVoice className="text-7xl text-white  bg-green-400 rounded-full p-3" />
+          <MdKeyboardVoice
+            className={`text-7xl text-white ${
+              isListening ? ' bg-green-400' : 'bg-red-600'
+            } rounded-full p-3`}
+          />
         </button>
       </div>
-      <div className="flex">
-        <div>
-          <div className="text-3xl text-white">Question:</div>
+      <div className="flex w-full justify-center items-center">
+        <div className="w-1/2 flex justify-end gap-8">
+          <div className="justify-end text-xl text-right text-black bg-white bg-cover rounded-t-lg rounded-bl-lg p-4 h-20 w-1/2 xl:w-2/5 uppercase">
+            {transcript}
+          </div>
           <Image
+            className=""
             src={characterOne.src}
             width={characterOne.width}
             height={characterOne.height}
             alt="charcater 1"
           />
         </div>
-        <div>
-          <div className="text-3xl text-white">Answer:</div>
+        <div className="flex w-1/2 justify-start gap-8">
           <Image
+            className=""
             src={characterTwo.src}
             width={characterTwo.width}
             height={characterTwo.height}
             alt="charcater 2"
           />
+          <div className="text-xl text-black bg-white rounded-t-lg rounded-br-lg p-4 h-20 w-1/2 xl:w-2/5 uppercase">
+            {answer}
+          </div>
         </div>
       </div>
     </div>
