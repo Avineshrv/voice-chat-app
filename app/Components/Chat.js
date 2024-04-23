@@ -110,40 +110,41 @@ export const Chat = ({ qa }) => {
   return (
     <div className="flex flex-col justify-center items-center w-full h-full gap-8">
       <div className="flex flex-col justify-center items-center gap-4">
-        <h1 className="text-white font-sans font-bold text-5xl">
+        <h1 className="text-white font-sans font-bold text-xl md:text-5xl">
           Voice Chat Buddy
         </h1>
         <button onClick={toggleListen}>
           <MdKeyboardVoice
-            className={`text-7xl text-white ${
+            className={`text-5xl md:text-7xl text-white ${
               isListening ? ' bg-green-400' : 'bg-red-600'
             } rounded-full p-3`}
           />
         </button>
       </div>
       <div className="flex w-full justify-center items-center">
-        <div className="w-1/2 flex justify-end gap-8">
-          <div className="justify-end text-xl text-right text-black bg-white bg-cover rounded-t-lg rounded-bl-lg p-4 h-20 w-1/2 xl:w-2/5 uppercase">
-            {transcript}
-          </div>
+        <div className="relative">
           <Image
-            className=""
+            className="w-full"
             src={characterOne.src}
             width={characterOne.width}
             height={characterOne.height}
             alt="charcater 1"
           />
+          <div className="absolute top-0 right-[100%] flex w-full">
+            <div className="bubble grow right">{transcript}</div>
+          </div>
         </div>
-        <div className="flex w-1/2 justify-start gap-8">
+        <div className="relative">
           <Image
-            className=""
+            className="w-full"
             src={characterTwo.src}
             width={characterTwo.width}
             height={characterTwo.height}
             alt="charcater 2"
           />
-          <div className="text-xl text-black bg-white rounded-t-lg rounded-br-lg p-4 h-20 w-1/2 xl:w-2/5 uppercase">
-            {answer}
+
+          <div className="absolute top-0 left-[100%] flex w-full">
+            <div className="bubble grow left">{answer}</div>
           </div>
         </div>
       </div>

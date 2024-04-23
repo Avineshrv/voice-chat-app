@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+body > div:first-child,
+div#__next,
+div#__next > div {
+  height: 100%;
+}
+
+.dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dots div {
+  width: 8px;
+  height: 8px;
+  margin: 0 3px;
+  background-color: black;
+  border-radius: 50%;
+  animation: bounce 1s infinite;
+}
+
+.dots div:nth-child(2) {
+  background-color: aqua;
+  animation-delay: 0.5s;
+}
+
+.dots div:nth-child(3) {
+  background-color: lightcoral;
+  animation-delay: 1s;
+}
+
+@keyframes bounce {
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-15px);
+  }
+  60% {
+    transform: translateY(-10px);
+  }
+}
+
+$px: 4px;
+$black: #000;
+$white: #fff;
+$shadow: rgba(0, 0, 0, 0.1);
+$bubble-border: 0 -1 * $px $white, 0 -2 * $px $black, $px 0 $white,
+  $px -1 * $px $black, 2 * $px 0 $black, 0 $px $white, 0 2 * $px $black,
+  -1 * $px 0 $white, -1 * $px $px $black, -2 * $px 0 $black,
+  -1 * $px -1 * $px $black, $px $px $black;
+
+.bubble {
+  position: relative;
+  display: inline-block;
+  margin: 5 * $px;
+  text-align: center;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 16px;
+  line-height: 1.3em;
+  background-color: $white;
+  color: $black;
+  padding: 3 * $px;
+  box-shadow: $bubble-border;
+
+  box-sizing: border-box;
+  width: 200px;
+
+  &::after {
+    content: '';
+    display: block;
+    position: absolute;
+    box-sizing: border-box;
+  }
+}
+
+.bubble.grow.left,
+.bubble.grow.right {
+  width: initial;
+}
+
+.bubble.left::after {
+  height: $px;
+  width: $px;
+  top: 5 * $px;
+  left: -2 * $px;
+  background: white;
+  box-shadow: -1 * $px -1 * $px $white, -1 * $px 0 $white, -2 * $px 0 $white,
+    0 -2 * $px $white, -1 * $px 1 * $px $black, -2 * $px 1 * $px $black,
+    -3 * $px 1 * $px $black, -4 * $px 1 * $px $black, -3 * $px 0 $black,
+    -2 * $px -1 * $px $black, -1 * $px -2 * $px $black, 0 -1 * $px $white;
+}
+
+.bubble.right::after {
+  height: $px;
+  width: $px;
+  top: 5 * $px;
+  right: -2 * $px;
+  background: white;
+  box-shadow: 1 * $px -1 * $px $white, 1 * $px 0 $white, 2 * $px 0 $white,
+    0 -2 * $px $white, 1 * $px 1 * $px $black, 2 * $px 1 * $px $black,
+    3 * $px 1 * $px $black, 4 * $px 1 * $px $black, 3 * $px 0 $black,
+    2 * $px -1 * $px $black, 1 * $px -2 * $px $black, 0 -1 * $px $white;
+}

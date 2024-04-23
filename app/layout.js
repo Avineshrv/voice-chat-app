@@ -1,11 +1,12 @@
-import { Inter } from "next/font/google";
-import "./globals.css";
+import { Inter } from 'next/font/google';
+import './globals.scss';
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: "Voice Bot",
-  description: "Application that answer to you question if the answer there in the DB",
+  title: 'Voice Bot',
+  description:
+    'Application that answer to you question if the answer there in the DB',
 };
 
 export default function RootLayout({ children }) {
