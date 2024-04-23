@@ -124,26 +124,26 @@ export const Chat = ({ qa }) => {
       <div className="flex w-full justify-center items-center">
         <div className="relative">
           <Image
-            className="w-full"
+            className="w-1/2 md:w-full mx-auto"
             src={characterOne.src}
             width={characterOne.width}
             height={characterOne.height}
             alt="charcater 1"
           />
-          <div className="absolute top-0 right-[100%] flex w-full">
+          <div className="md:absolute top-0 right-[100%] flex w-full">
             <div className="bubble grow right">{transcript}</div>
           </div>
         </div>
         <div className="relative">
           <Image
-            className="w-full"
+            className="w-1/2 md:w-full mx-auto"
             src={characterTwo.src}
             width={characterTwo.width}
             height={characterTwo.height}
             alt="charcater 2"
           />
 
-          <div className="absolute top-0 left-[100%] flex w-full">
+          <div className="md:absolute top-0 left-[100%] flex w-full">
             <div className="bubble grow left">{answer}</div>
           </div>
         </div>
