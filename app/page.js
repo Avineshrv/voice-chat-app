@@ -2,8 +2,8 @@ import { Chat } from './Components/Chat';
 
 export default function Home() {
   const qa = {
-    'what is your name': 'I am your Friend',
-    'how are you': 'I am fine',
+    'what is your name': 'I am your Nimmi Karumi',
+    'how are you': 'I am fine. How about you?',
     'what can you do':
       'I can help you with information, advice, and a bit of entertainment.',
     'what time is it': 'Let me check the current time for you.',
@@ -14,9 +14,9 @@ export default function Home() {
     'set a timer for 3 minutes': 'Starting a timer for 3 minutes now.',
     'remind me to call Mom at 7 PM':
       "I'll remind you to call Mom at 7 PM today.",
-    'how do I make a cake':
+    'how do i make a cake':
       'I can guide you through the steps to bake a delicious cake.',
-    'what’s the news today':
+    'what is the news today':
       'I’ll find the latest news for you. Just a moment.',
   };
 
