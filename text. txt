@@ -1,0 +1,108 @@
+// watchlistPopupContent.spec.js
+
+import React from 'react';
+import { expect } from 'chai';
+import { shallow, mount } from 'enzyme';
+import sinon from 'sinon';
+import WatchlistPopupContent from './WatchlistPopupContent';
+
+// Helper for rendering the component with default/mock props
+function renderComponent(extraProps = {}) {
+  const defaultProps = {
+    data: {...},            // insert realistic mock data for your state shape
+    pollRate: {...},
+    fxRates: [{ lo: 1, hi: 1.2 }],
+    fxpoll: [],
+    chartModal: false,
+    showFXPoll: false,
+    newOrder: {},
+    countryConfig: {},
+    stopRatePoll: sinon.spy(),
+    getChartPageProps: sinon.stub(),
+    ...extraProps
+  };
+  return shallow(<WatchlistPopupContent {...defaultProps} />);
+}
+
+describe('WatchlistPopupContent', () => {
+  it('renders without crashing for valid data', () => {
+    const wrapper = renderComponent();
+    expect(wrapper.exists()).to.be.true;
+  });
+
+  it('displays loading or empty state when data is missing', () => {
+    const wrapper = renderComponent({ data: null });
+    expect(wrapper.type()).to.equal(null); // See code for "if (!data) return null"
+  });
+
+  it('renders currency pair names', () => {
+    const wrapper = renderComponent({ data: { currPairName: { currPairName: "USDINR" } } });
+    expect(wrapper.text()).to.include("USDINR");
+  });
+
+  it('shows correct daily high/low/metrics', () => {
+    const fxRates = [{ lo: 80, hi: 90 }];
+    const wrapper = renderComponent({ fxRates });
+    expect(wrapper.text()).to.include("Daily Low");
+    expect(wrapper.text()).to.include("Daily High");
+    expect(wrapper.text()).to.include("80");
+    expect(wrapper.text()).to.include("90");
+  });
+
+  it('invokes order dialog open and close correctly', () => {
+    const setOrderOpen = sinon.spy();
+    const wrapper = renderComponent({ setOrderOpen });
+    wrapper.find('orderButtonSelector').simulate('click');
+    // Replace orderButtonSelector with proper selector for your order open
+    expect(setOrderOpen.called).to.be.true;
+  });
+
+  it('handles placeOrder function and updates state', () => {
+    const wrapper = mount(<WatchlistPopupContent {...defaultProps} />);
+    const buyButton = wrapper.find('.watchlist-popup__footerButton-buy');
+    buyButton.simulate('click');
+    expect(wrapper.state().isOrderOpen).to.be.true;
+    expect(wrapper.state().currencyOrderType).to.equal('buy');
+  });
+
+  it('renders buy/sell footer buttons with correct rate', () => {
+    const wrapper = renderComponent({ sell: 99, buy: 101, formatPrice: (p) => `${p}.00` });
+    expect(wrapper.text()).to.include('99.00');
+    expect(wrapper.text()).to.include('101.00');
+  });
+
+  it('handles case when fxRates is missing or empty', () => {
+    const wrapper = renderComponent({ fxRates: [] });
+    expect(wrapper.text()).to.not.include('undefined');
+  });
+
+  it('shows error or fallback on invalid or malformed data', () => {
+    // Fuzz the component with a variety of incorrect props
+    const wrapper = renderComponent({ data: { currPairName: {} }, fxRates: undefined });
+    // Add an error boundary or check for fallback UI
+    expect(wrapper.exists()).to.be.true;
+  });
+
+  describe('exception handling', () => {
+    it('catches exceptions in event handlers', () => {
+      // Simulate an error in placeOrder
+      const errorStub = sinon.stub(console, 'error');
+      const wrapper = renderComponent({
+        placeOrder: () => { throw new Error('Test error'); }
+      });
+      expect(() => wrapper.find('.watchlist-popup__footerButton-buy').simulate('click')).to.not.throw();
+      errorStub.restore();
+    });
+  });
+
+  describe('data validation and type checks', () => {
+    it('should not crash with null, undefined, or unexpected data types', () => {
+      expect(() => renderComponent({ data: null })).to.not.throw();
+      expect(() => renderComponent({ data: undefined })).to.not.throw();
+      expect(() => renderComponent({ data: 1234 })).to.not.throw();
+    });
+    it('should handle incorrect fxRates gracefully', () => {
+      expect(() => renderComponent({ fxRates: [null, undefined, {}] })).to.not.throw();
+    });
+  });
+});
