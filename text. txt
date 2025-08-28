@@ -1,108 +1,193 @@
-// watchlistPopupContent.spec.js
-
 import React from 'react';
+import ReactDOM from 'react-dom';
+import { act, Simulate } from 'react-dom/test-utils'; // Use React's own test utils
 import { expect } from 'chai';
-import { shallow, mount } from 'enzyme';
 import sinon from 'sinon';
-import WatchlistPopupContent from './WatchlistPopupContent';
 
-// Helper for rendering the component with default/mock props
-function renderComponent(extraProps = {}) {
-  const defaultProps = {
-    data: {...},            // insert realistic mock data for your state shape
-    pollRate: {...},
-    fxRates: [{ lo: 1, hi: 1.2 }],
-    fxpoll: [],
-    chartModal: false,
-    showFXPoll: false,
-    newOrder: {},
-    countryConfig: {},
-    stopRatePoll: sinon.spy(),
-    getChartPageProps: sinon.stub(),
-    ...extraProps
-  };
-  return shallow(<WatchlistPopupContent {...defaultProps} />);
-}
+// Adjust the import path to your component's location
+import PopupContainer from '../components/Common/PopupContainer';
 
-describe('WatchlistPopupContent', () => {
-  it('renders without crashing for valid data', () => {
-    const wrapper = renderComponent();
-    expect(wrapper.exists()).to.be.true;
-  });
+// Mock for the SVG component import
+vi.mock('../assets/svg-images/ArrowLeftSVG', () => ({
+    default: () => <svg />
+}));
 
-  it('displays loading or empty state when data is missing', () => {
-    const wrapper = renderComponent({ data: null });
-    expect(wrapper.type()).to.equal(null); // See code for "if (!data) return null"
-  });
+describe('PopupContainer Component (with react-dom/test-utils)', () => {
+    let container;
+    let portalRoot;
+    let requiredProps;
 
-  it('renders currency pair names', () => {
-    const wrapper = renderComponent({ data: { currPairName: { currPairName: "USDINR" } } });
-    expect(wrapper.text()).to.include("USDINR");
-  });
+    beforeEach(() => {
+        // This is the container where we will render our component
+        container = document.createElement('div');
+        document.body.appendChild(container);
+        
+        // The portal target for the component
+        portalRoot = document.createElement('div');
+        portalRoot.setAttribute('id', 'logged-in');
+        document.body.appendChild(portalRoot);
 
-  it('shows correct daily high/low/metrics', () => {
-    const fxRates = [{ lo: 80, hi: 90 }];
-    const wrapper = renderComponent({ fxRates });
-    expect(wrapper.text()).to.include("Daily Low");
-    expect(wrapper.text()).to.include("Daily High");
-    expect(wrapper.text()).to.include("80");
-    expect(wrapper.text()).to.include("90");
-  });
-
-  it('invokes order dialog open and close correctly', () => {
-    const setOrderOpen = sinon.spy();
-    const wrapper = renderComponent({ setOrderOpen });
-    wrapper.find('orderButtonSelector').simulate('click');
-    // Replace orderButtonSelector with proper selector for your order open
-    expect(setOrderOpen.called).to.be.true;
-  });
-
-  it('handles placeOrder function and updates state', () => {
-    const wrapper = mount(<WatchlistPopupContent {...defaultProps} />);
-    const buyButton = wrapper.find('.watchlist-popup__footerButton-buy');
-    buyButton.simulate('click');
-    expect(wrapper.state().isOrderOpen).to.be.true;
-    expect(wrapper.state().currencyOrderType).to.equal('buy');
-  });
-
-  it('renders buy/sell footer buttons with correct rate', () => {
-    const wrapper = renderComponent({ sell: 99, buy: 101, formatPrice: (p) => `${p}.00` });
-    expect(wrapper.text()).to.include('99.00');
-    expect(wrapper.text()).to.include('101.00');
-  });
-
-  it('handles case when fxRates is missing or empty', () => {
-    const wrapper = renderComponent({ fxRates: [] });
-    expect(wrapper.text()).to.not.include('undefined');
-  });
-
-  it('shows error or fallback on invalid or malformed data', () => {
-    // Fuzz the component with a variety of incorrect props
-    const wrapper = renderComponent({ data: { currPairName: {} }, fxRates: undefined });
-    // Add an error boundary or check for fallback UI
-    expect(wrapper.exists()).to.be.true;
-  });
-
-  describe('exception handling', () => {
-    it('catches exceptions in event handlers', () => {
-      // Simulate an error in placeOrder
-      const errorStub = sinon.stub(console, 'error');
-      const wrapper = renderComponent({
-        placeOrder: () => { throw new Error('Test error'); }
-      });
-      expect(() => wrapper.find('.watchlist-popup__footerButton-buy').simulate('click')).to.not.throw();
-      errorStub.restore();
+        requiredProps = {
+            onClose: sinon.spy(),
+            onBack: sinon.spy(),
+            onStepBack: sinon.spy(),
+            title: 'Test Title',
+            children: <div>Popup Content</div>,
+        };
     });
-  });
 
-  describe('data validation and type checks', () => {
-    it('should not crash with null, undefined, or unexpected data types', () => {
-      expect(() => renderComponent({ data: null })).to.not.throw();
-      expect(() => renderComponent({ data: undefined })).to.not.throw();
-      expect(() => renderComponent({ data: 1234 })).to.not.throw();
+    afterEach(() => {
+        // Unmount the component and clean up the DOM
+        act(() => {
+            ReactDOM.unmountComponentAtNode(container);
+        });
+        container.remove();
+        container = null;
+        portalRoot.remove();
+        portalRoot = null;
+        document.body.style.overflow = '';
+        sinon.restore();
     });
-    it('should handle incorrect fxRates gracefully', () => {
-      expect(() => renderComponent({ fxRates: [null, undefined, {}] })).to.not.throw();
+
+    // ## Test Suite ##
+
+    describe('Core Rendering and Lifecycle', () => {
+        it('should render the title and children correctly into the portal', () => {
+            act(() => {
+                ReactDOM.render(<PopupContainer {...requiredProps} />, container);
+            });
+            expect(portalRoot.textContent).to.include('Test Title');
+            expect(portalRoot.textContent).to.include('Popup Content');
+        });
+
+        it('should set body overflow to "hidden" on mount and reset it on unmount', () => {
+            expect(document.body.style.overflow).to.equal('');
+            act(() => {
+                ReactDOM.render(<PopupContainer {...requiredProps} />, container);
+            });
+            expect(document.body.style.overflow).to.equal('hidden');
+            
+            act(() => {
+                ReactDOM.unmountComponentAtNode(container);
+            });
+            expect(document.body.style.overflow).to.equal('');
+        });
     });
-  });
+
+    describe('Prop: showClose', () => {
+        it('should show the close button by default and trigger onClose on click + animation', () => {
+            act(() => {
+                ReactDOM.render(<PopupContainer {...requiredProps} />, container);
+            });
+            
+            const closeButton = portalRoot.querySelector('.popup-container__close');
+            const panel = portalRoot.querySelector('.popup-container__panel');
+            expect(closeButton).to.exist;
+
+            act(() => {
+                Simulate.click(closeButton); // Simulate click event
+            });
+            
+            expect(panel.classList.contains('closing')).to.be.true;
+            expect(requiredProps.onClose.called).to.be.false;
+
+            act(() => {
+                Simulate.animationEnd(panel); // Simulate animation end event
+            });
+
+            expect(requiredProps.onClose.calledOnce).to.be.true;
+        });
+
+        it('should hide the close button when showClose is false', () => {
+            act(() => {
+                ReactDOM.render(<PopupContainer {...requiredProps} showClose={false} />, container);
+            });
+            const closeButton = portalRoot.querySelector('.popup-container__close');
+            expect(closeButton).to.not.exist;
+        });
+    });
+    
+    describe('Props: showBack and stepBack', () => {
+        it('should not render a back button by default', () => {
+             act(() => {
+                ReactDOM.render(<PopupContainer {...requiredProps} />, container);
+            });
+            const backButton = portalRoot.querySelector('.popup-container__back');
+            expect(backButton).to.not.exist;
+        });
+
+        it('should render back button and trigger onBack when showBack is true', () => {
+             act(() => {
+                ReactDOM.render(<PopupContainer {...requiredProps} showBack={true} />, container);
+            });
+
+            const backButton = portalRoot.querySelector('.popup-container__back');
+            const panel = portalRoot.querySelector('.popup-container__panel');
+            expect(backButton).to.exist;
+
+            act(() => {
+                Simulate.click(backButton);
+            });
+
+            expect(panel.classList.contains('backing')).to.be.true;
+            expect(requiredProps.onBack.called).to.be.false;
+            
+            act(() => {
+                Simulate.animationEnd(panel);
+            });
+
+            expect(requiredProps.onBack.calledOnce).to.be.true;
+        });
+
+        it('should render back button and trigger onStepBack when showBack is false and stepBack is true', () => {
+            act(() => {
+                ReactDOM.render(<PopupContainer {...requiredProps} showBack={false} stepBack={true} />, container);
+            });
+
+            const backButton = portalRoot.querySelector('.popup-container__back');
+            expect(backButton).to.exist;
+            
+            act(() => {
+                Simulate.click(backButton);
+            });
+
+            expect(requiredProps.onStepBack.calledOnce).to.be.true;
+            expect(requiredProps.onBack.called).to.be.false;
+        });
+    });
+
+    describe('Other Props', () => {
+        it('should have center-aligned title class by default', () => {
+            act(() => {
+                ReactDOM.render(<PopupContainer {...requiredProps} />, container);
+            });
+            const titleElement = portalRoot.querySelector('h2');
+            expect(titleElement.classList.contains('popup-container__title--center')).to.be.true;
+        });
+
+        it('should have left-aligned title class when titleAlign is "left"', () => {
+             act(() => {
+                ReactDOM.render(<PopupContainer {...requiredProps} titleAlign="left" />, container);
+            });
+            const titleElement = portalRoot.querySelector('h2');
+            expect(titleElement.classList.contains('popup-container__title--left')).to.be.true;
+        });
+
+        it('should add "has-button" class when hasButton is true', () => {
+            act(() => {
+                ReactDOM.render(<PopupContainer {...requiredProps} hasButton={true} />, container);
+            });
+            const contentContainer = portalRoot.querySelector('.popup-container__content');
+            expect(contentContainer.classList.contains('has-button')).to.be.true;
+        });
+
+        it('should apply a custom background style as a CSS variable', () => {
+            const customBackground = 'rgb(255, 0, 0)';
+            act(() => {
+                ReactDOM.render(<PopupContainer {...requiredProps} background={customBackground} />, container);
+            });
+            const panel = portalRoot.querySelector('.popup-container__panel');
+            expect(panel.style.getPropertyValue('--popup-panel-background')).to.equal(customBackground);
+        });
+    });
 });
