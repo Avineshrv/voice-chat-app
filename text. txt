@@ -1,0 +1,225 @@
+import React from 'react';
+import { shallow } from 'enzyme';
+import { expect } from 'chai';
+import sinon from 'sinon';
+import proxyquire from 'proxyquire';
+import { IntlProvider } from 'react-intl';
+
+// --- 1. Define Stubs for All Dependencies ---
+// Create simple functional components or spies to stand in for the real ones.
+const dispatchSpy = sinon.spy();
+const trackCallToActionSpy = sinon.spy();
+const ninjaTrackCTASpy = sinon.spy();
+
+const stubs = {
+  // Mock child React components
+  '../components/Watchlist-v7/WatchlistPopup/WatchlistPopup': (props) => <div className="mock-watchlist-popup" onClick={() => props.onBack()} />,
+  '../components/Watchlist-v7/WatchlistPopup/WatchlistPopupContent': (props) => <div className="mock-watchlist-popup-content" onClick={props.closePopup} />,
+  '../Order-v7/OrderContainerV7': ({ onClose }) => <div className="mock-order-container" onClick={onClose} />,
+  '../components/Watchlist-v7/FXPairContainer/FXPairContainer': ({ onBuy, onSell }) => (
+    <div className="mock-fx-pair-container">
+      <button className="buy-btn" onClick={onBuy}></button>
+      <button className="sell-btn" onClick={onSell}></button>
+    </div>
+  ),
+  '../components/Common/CenteredPopup/CenteredPopup': ({ title, onClose, children }) => (
+    <div className="mock-centered-popup" onClick={onClose}>
+      <span className="title">{title}</span>
+      {children}
+    </div>
+  ),
+  '../components/Common/DrawerContainer/DrawerContainer': ({ onClose, children }) => (
+    <div className="mock-drawer-container" onClick={onClose}>{children}</div>
+  ),
+  './components/Common/CustomPopupContainer': ({ onClose, children }) => (
+    <div className="mock-custom-popup-container" onClick={onClose}>{children}</div>
+  ),
+  '../components/Watchlist-v7/FXShuffleWatchlist': () => <div className="mock-fx-shuffle-watchlist" />,
+  '../components/Watchlist-v7/FXAddToWatchlistContainer': () => <div className="mock-fx-add-to-watchlist-container" />,
+  '../assets/svg-images/EditIconSVG': () => <svg className="mock-edit-icon" />,
+  '../assets/svg-images/CheckCircleSolid': () => <svg className="mock-check-icon" />,
+  
+  // Mock Redux connect and hooks
+  'react-redux': {
+     useDispatch: () => dispatchSpy,
+     connect: () => (Component) => Component, // Pass the component through without connecting
+  },
+  
+  // Mock other modules and actions
+  '../actions/fx-actions': {
+      getExchangeRates: () => ({ type: 'GET_EXCHANGE_RATES' }),
+  },
+  '../actions/watchlist-actions': {
+      fetchWatchlist: (id) => ({ type: 'FETCH_WATCHLIST', payload: id }),
+      changeWatchlist: (value) => ({ type: 'CHANGE_WATCHLIST', payload: value }),
+      changePage: (page) => ({ type: 'CHANGE_PAGE', payload: page }),
+  },
+  '../scb/shared-utils/lib/adobe/adobe': {
+      trackCallToAction: trackCallToActionSpy,
+  },
+  '../utils/ninja': {
+      ninjaTrackCTA: ninjaTrackCTASpy,
+  },
+  '../constants/watchlist': {
+    WATCHLIST_PAGE: 'WATCHLIST_PAGE',
+    WATCHLIST_SHUFFLE_PAGE: 'WATCHLIST_SHUFFLE_PAGE',
+    WATCHLIST_ADD_PAGE: 'WATCHLIST_ADD_PAGE',
+  },
+};
+
+// --- 2. Load the Component with Proxyquire ---
+const { Watchlist } = proxyquire.noCallThru().load('./Watchlist', stubs);
+
+// Constants used in tests
+const WATCHLIST_PAGE = 'WATCHLIST_PAGE';
+const WATCHLIST_SHUFFLE_PAGE = 'WATCHLIST_SHUFFLE_PAGE';
+const WATCHLIST_ADD_PAGE = 'WATCHLIST_ADD_PAGE';
+
+describe('<Watchlist /> Component with Proxyquire', () => {
+  let wrapper;
+  let props;
+  
+  // Spies for prop functions
+  const setActiveTab = sinon.spy();
+  const setFooterBtn = sinon.spy();
+  const setApplyChanges = sinon.spy();
+  const setShowCurrencyCard = sinon.spy();
+  
+  const intl = { formatMessage: ({ id }) => id };
+
+  beforeEach(() => {
+    // Reset spies before each test
+    dispatchSpy.resetHistory();
+    setActiveTab.resetHistory();
+    trackCallToActionSpy.resetHistory();
+    ninjaTrackCTASpy.resetHistory();
+    
+    props = {
+      rates: { 'EUR/USD': { /* rate data */ } },
+      list: [
+        { watchlistId: '1', watchListName: 'My Watchlist', currPairs: [{ currPairName: 'EUR/USD' }] },
+        { watchlistId: '2', watchListName: 'Favorites', currPairs: [] },
+      ],
+      listOptions: [
+        { value: '1', text: 'My Watchlist' },
+        { value: '2', text: 'Favorites' },
+      ],
+      enablePopup: false,
+      isMobile: false,
+      tab: 'Watchlist',
+      watchlistId: '1',
+      page: WATCHLIST_PAGE,
+      setActiveTab,
+      intl,
+      setFooterBtn,
+      setPopupChanges: sinon.spy(),
+      setShowCurrencyCard,
+      setApplyChanges,
+    };
+    
+    wrapper = shallow(<Watchlist {...props} />);
+  });
+
+  it('should render without crashing', () => {
+    expect(wrapper.exists()).to.be.true;
+  });
+
+  it('should dispatch fetchWatchlist and getExchangeRates on mount via useEffect', () => {
+    expect(dispatchSpy.calledWith({ type: 'FETCH_WATCHLIST', payload: 'common.watchlist' })).to.be.true;
+    expect(dispatchSpy.calledWith({ type: 'GET_EXCHANGE_RATES' })).to.be.true;
+    expect(dispatchSpy.callCount).to.equal(2);
+  });
+  
+  it('should render "No Data Available" when watchlist has no pairs', () => {
+    wrapper.setProps({ watchlistId: '2' });
+    expect(wrapper.find('.no-data').text()).to.equal('No Data Available');
+  });
+
+  it('should open and close the watchlist selection popup', (done) => {
+    // Open
+    wrapper.find('.watchlist-dropdown_select').simulate('click');
+    expect(trackCallToActionSpy.calledWith({ ctaName: 'select_watchlist', ctaType: 'drop-down' })).to.be.true;
+    
+    setTimeout(() => {
+      wrapper.update();
+      expect(wrapper.find('.mock-custom-popup-container')).to.have.lengthOf(1);
+      
+      // Close
+      wrapper.find('.mock-custom-popup-container').simulate('click');
+       setTimeout(() => {
+        wrapper.update();
+        expect(wrapper.find('.mock-custom-popup-container')).to.have.lengthOf(0);
+        done();
+       }, 0);
+    }, 0);
+  });
+
+  it('should dispatch changeWatchlist when a new list is selected', (done) => {
+    wrapper.find('.watchlist-dropdown_select').simulate('click');
+    setTimeout(() => {
+      wrapper.update();
+      wrapper.find('.watchlist-popup_item').at(1).simulate('click');
+      expect(dispatchSpy.calledWith({ type: 'CHANGE_WATCHLIST', payload: '2' })).to.be.true;
+      done();
+    }, 0);
+  });
+
+  it('should handle row click on "Explore" tab', () => {
+    wrapper.setProps({ tab: 'Explore' });
+    wrapper.find('.watchlist-dropdown_content_left').simulate('click');
+    expect(setActiveTab.calledWith(2)).to.be.true;
+    expect(trackCallToActionSpy.calledWith({ ctaName: 'select_currency_pair', ctaType: 'list-item' })).to.be.true;
+  });
+
+  it('should place buy and sell orders', (done) => {
+    // Test Buy
+    wrapper.find('.mock-fx-pair-container').props().onBuy();
+    expect(trackCallToActionSpy.calledWith(sinon.match({ ctaName: 'place_order_buy' }))).to.be.true;
+    setTimeout(() => {
+      wrapper.update();
+      expect(wrapper.find('.mock-order-container')).to.have.lengthOf(1);
+
+      // Test Sell
+      wrapper.find('.mock-fx-pair-container').props().onSell();
+      expect(trackCallToActionSpy.calledWith(sinon.match({ ctaName: 'place_order_sell' }))).to.be.true;
+      done();
+    }, 0);
+  });
+
+  it('should render correct edit page based on `page` prop', () => {
+    // Test Shuffle Page
+    wrapper.setProps({ page: WATCHLIST_SHUFFLE_PAGE });
+    let popup = wrapper.find('.mock-centered-popup');
+    expect(popup.find('.mock-fx-shuffle-watchlist')).to.have.lengthOf(1);
+    expect(popup.find('.title').text()).to.equal('Edit Watchlist');
+
+    // Test Add Page
+    wrapper.setProps({ page: WATCHLIST_ADD_PAGE });
+    popup = wrapper.find('.mock-centered-popup');
+    expect(popup.find('.mock-fx-add-to-watchlist-container')).to.have.lengthOf(1);
+  });
+  
+  it('should render DrawerContainer on mobile for edit pages', () => {
+    wrapper.setProps({ page: WATCHLIST_SHUFFLE_PAGE, isMobile: true });
+    const drawer = wrapper.find('.mock-drawer-container');
+    expect(drawer).to.have.lengthOf(1);
+    expect(drawer.find('.mock-fx-shuffle-watchlist')).to.have.lengthOf(1);
+  });
+  
+  it('should close the edit popup/drawer and dispatch changePage', () => {
+      wrapper.setProps({ page: WATCHLIST_SHUFFLE_PAGE });
+      wrapper.find('.mock-centered-popup').simulate('click');
+      expect(dispatchSpy.calledWith({ type: 'CHANGE_PAGE', payload: 'WATCHLIST_PAGE' })).to.be.true;
+  });
+  
+  it('should render conditional popups when enablePopup is true', () => {
+      // Mobile popup
+      wrapper.setProps({ enablePopup: true, isMobile: true, tab: 'Watchlist' });
+      expect(wrapper.find('.mock-watchlist-popup')).to.have.lengthOf(1);
+
+      // Desktop popup
+      wrapper.setProps({ isMobile: false });
+      expect(wrapper.find('.mock-watchlist-popup-content')).to.have.lengthOf(1);
+  });
+
+});
