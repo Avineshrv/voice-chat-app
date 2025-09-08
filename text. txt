@@ -1,0 +1,71 @@
+import React from 'react';
+import { mount } from 'enzyme';
+import { expect } from 'chai';
+import { spy } from 'sinon';
+
+// Import the component you are testing
+// Note: You must export the unconnected component for this to work
+import { AddToWatchlistContainer } from './AddToWatchlistContainer'; 
+
+// Assuming ninjaTrackCTA is a named export from another file
+import * as NinjaUtils from '../utils/ninja-v7'; // Adjust the path as needed
+
+// Mock the WATCHLIST_SHUFFLE_PAGE constant if it's not available in the test environment
+const WATCHLIST_SHUFFLE_PAGE = 'watchlist-shuffle-page';
+
+describe('<AddToWatchlistContainer />', () => {
+  let ninjaTrackCTASpy;
+
+  // Use hooks to set up and tear down spies
+  beforeEach(() => {
+    // Spy on the imported ninjaTrackCTA function before each test
+    ninjaTrackCTASpy = spy(NinjaUtils, 'ninjaTrackCTA');
+  });
+
+  afterEach(() => {
+    // Restore the original function after each test
+    ninjaTrackCTASpy.restore();
+  });
+
+  it('should call changePageFunc and ninjaTrackCTA when the Add button is clicked', () => {
+    // 1. Arrange: Create Sinon spies and define component props
+    const changePageFuncSpy = spy();
+
+    const props = {
+      changePageFunc: changePageFuncSpy,
+      addWatchlistPairs: ['EUR/USD'], // Causes isNewItemAdded to be true
+      initialPairs: [],
+      // Mock other required props
+      searchWatchlist: () => {},
+      intl: { formatMessage: ({ id }) => id },
+      allPairs: ['EUR/USD', 'GBP/USD'],
+      searchValue: '',
+      toWatchlistLimit: false,
+    };
+
+    // 2. Act: Mount the component and simulate the click
+    const wrapper = mount(<AddToWatchlistContainer {...props} />);
+    
+    // Find the Button component (you can use a more specific selector if needed)
+    const addButton = wrapper.find('Button').filterWhere(n => n.text() === 'Add');
+
+    // Ensure the button is enabled before clicking
+    expect(addButton.prop('disabled')).to.be.false;
+
+    // Simulate the click event
+    addButton.simulate('click');
+
+    // 3. Assert: Check if the spies were called correctly
+    
+    // Use Chai's expect with Sinon's assertions
+    expect(changePageFuncSpy.calledOnce).to.be.true;
+    expect(changePageFuncSpy.calledWith(WATCHLIST_SHUFFLE_PAGE)).to.be.true;
+
+    expect(ninjaTrackCTASpy.calledOnce).to.be.true;
+    expect(ninjaTrackCTASpy.calledWith({
+      customLinkText: 'added_currency_pair',
+      customLinkType: 'button',
+      customLinkPosition: 'middle-bottom',
+    })).to.be.true;
+  });
+});
