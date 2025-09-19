@@ -1,71 +1,245 @@
-import React from 'react';
-import { mount } from 'enzyme';
-import { expect } from 'chai';
-import { spy } from 'sinon';
+// index.tsx
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  ForwardedRef,
+} from 'react';
+import debounce from 'lodash/debounce';
+import classNames from 'classnames';
+import styles from './searchInput.module.scss';
+import { GradientSearch, XCircle } from 'sc-nitro-icons';
 
-// Import the component you are testing
-// Note: You must export the unconnected component for this to work
-import { AddToWatchlistContainer } from './AddToWatchlistContainer'; 
+export type SearchInputProps = {
+  value: string;
+  onChange?: (value: string) => void;
+  onClear?: () => void;
+  placeholder?: string[]; // rotation placeholders
+  roundedCorner?: boolean;
+  onSearch?: (searchValue: string) => void;
+  debounceDelay?: number; // ms
+  animationDuration?: number; // placeholder rotation ms
+  id?: string;
+  name?: string;
+  ariaLabel?: string;
+  className?: string;
+};
 
-// Assuming ninjaTrackCTA is a named export from another file
-import * as NinjaUtils from '../utils/ninja-v7'; // Adjust the path as needed
+/**
+ * SearchInput component (controlled).
+ * - onChange called immediately on every keystroke.
+ * - onSearch called only after `debounceDelay` ms of inactivity (or immediately on Enter).
+ */
+const SearchInput = React.forwardRef(function SearchInput(
+  {
+    value,
+    onChange,
+    onClear,
+    placeholder = ['Search...'],
+    roundedCorner = false,
+    onSearch,
+    debounceDelay = 300,
+    animationDuration = 1000,
+    id = 'searchInput',
+    name,
+    ariaLabel = 'Search',
+    className,
+  }: SearchInputProps,
+  forwardedRef: ForwardedRef<HTMLInputElement>
+) {
+  // placeholder rotation
+  const [currentPlaceholder, setCurrentPlaceholder] = useState(
+    placeholder[0] ?? ''
+  );
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
 
-// Mock the WATCHLIST_SHUFFLE_PAGE constant if it's not available in the test environment
-const WATCHLIST_SHUFFLE_PAGE = 'watchlist-shuffle-page';
+  // input ref (allow parent ref via forwardRef)
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  // merge forwarded ref
+  useEffect(() => {
+    if (!forwardedRef) return;
+    if (typeof forwardedRef === 'function') {
+      forwardedRef(inputRef.current);
+    } else {
+      // @ts-ignore assign
+      forwardedRef.current = inputRef.current;
+    }
+  }, [forwardedRef]);
 
-describe('<AddToWatchlistContainer />', () => {
-  let ninjaTrackCTASpy;
+  // debounced search stored in ref so we can cancel it reliably
+  const debouncedRef = useRef<ReturnType<typeof debounce> | null>(null);
 
-  // Use hooks to set up and tear down spies
-  beforeEach(() => {
-    // Spy on the imported ninjaTrackCTA function before each test
-    ninjaTrackCTASpy = spy(NinjaUtils, 'ninjaTrackCTA');
-  });
+  // create/update debounced function whenever onSearch or debounceDelay changes
+  useEffect(() => {
+    // create new debounced function that calls latest onSearch
+    const handler = debounce((v: string) => {
+      onSearch?.(v);
+    }, debounceDelay);
 
-  afterEach(() => {
-    // Restore the original function after each test
-    ninjaTrackCTASpy.restore();
-  });
-
-  it('should call changePageFunc and ninjaTrackCTA when the Add button is clicked', () => {
-    // 1. Arrange: Create Sinon spies and define component props
-    const changePageFuncSpy = spy();
-
-    const props = {
-      changePageFunc: changePageFuncSpy,
-      addWatchlistPairs: ['EUR/USD'], // Causes isNewItemAdded to be true
-      initialPairs: [],
-      // Mock other required props
-      searchWatchlist: () => {},
-      intl: { formatMessage: ({ id }) => id },
-      allPairs: ['EUR/USD', 'GBP/USD'],
-      searchValue: '',
-      toWatchlistLimit: false,
+    // set into ref and cleanup previous handler by returning cancel
+    debouncedRef.current = handler;
+    return () => {
+      handler.cancel();
     };
+  }, [onSearch, debounceDelay]);
 
-    // 2. Act: Mount the component and simulate the click
-    const wrapper = mount(<AddToWatchlistContainer {...props} />);
-    
-    // Find the Button component (you can use a more specific selector if needed)
-    const addButton = wrapper.find('Button').filterWhere(n => n.text() === 'Add');
+  // ensure we cancel any pending debounced call when component unmounts
+  useEffect(() => {
+    return () => {
+      debouncedRef.current?.cancel();
+    };
+  }, []);
 
-    // Ensure the button is enabled before clicking
-    expect(addButton.prop('disabled')).to.be.false;
+  // when input changes -> call onChange and schedule debounced search
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = e.target.value;
+      onChange?.(newValue);
+      debouncedRef.current?.(newValue); // schedule debounced onSearch
+    },
+    [onChange]
+  );
 
-    // Simulate the click event
-    addButton.simulate('click');
+  // on Enter -> cancel debounce and fire search immediately
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        debouncedRef.current?.cancel();
+        onSearch?.(value);
+      }
+    },
+    [onSearch, value]
+  );
 
-    // 3. Assert: Check if the spies were called correctly
-    
-    // Use Chai's expect with Sinon's assertions
-    expect(changePageFuncSpy.calledOnce).to.be.true;
-    expect(changePageFuncSpy.calledWith(WATCHLIST_SHUFFLE_PAGE)).to.be.true;
+  // clear button behaviour
+  const handleClear = useCallback(() => {
+    debouncedRef.current?.cancel();
+    onChange?.('');
+    onClear?.();
+    // keep focus for keyboard users
+    inputRef.current?.focus();
+  }, [onChange, onClear]);
 
-    expect(ninjaTrackCTASpy.calledOnce).to.be.true;
-    expect(ninjaTrackCTASpy.calledWith({
-      customLinkText: 'added_currency_pair',
-      customLinkType: 'button',
-      customLinkPosition: 'middle-bottom',
-    })).to.be.true;
-  });
+  // placeholder rotation logic
+  useEffect(() => {
+    setCurrentPlaceholder(placeholder[placeholderIndex] ?? '');
+  }, [placeholderIndex, placeholder]);
+
+  useEffect(() => {
+    if (!placeholder || placeholder.length <= 1) return;
+    const interval = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % placeholder.length);
+    }, animationDuration);
+    return () => clearInterval(interval);
+  }, [placeholder, animationDuration]);
+
+  return (
+    <div
+      className={classNames(
+        styles.searchInputContainer,
+        roundedCorner ? styles.fullyRounded : styles.halfRounded,
+        className
+      )}
+      // expose animation duration CSS variable if needed by styles module
+      style={{ ['--animation-duration' as any]: `${animationDuration}ms` } as React.CSSProperties}
+    >
+      <label
+        className={classNames(styles.animatedLabel, value && styles.activeLabel)}
+        htmlFor={id}
+      >
+        <span>{currentPlaceholder}</span>
+      </label>
+
+      <input
+        id={id}
+        name={name}
+        ref={inputRef}
+        className={classNames(styles.inputField)}
+        type="text"
+        value={value}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        aria-label={ariaLabel}
+        autoComplete="off"
+      />
+
+      {/* icon / clear button */}
+      {value ? (
+        <button
+          type="button"
+          className={styles.iconButton}
+          onClick={handleClear}
+          aria-label="Clear search"
+        >
+          <XCircle color="#282828" />
+        </button>
+      ) : (
+        <span className={styles.icon} aria-hidden>
+          <GradientSearch />
+        </span>
+      )}
+    </div>
+  );
 });
+
+export default React.memo(SearchInput);
+
+
+
+
+// searchInput.stories.tsx
+import React, { useState } from 'react';
+import { Meta, StoryFn } from '@storybook/react';
+import SearchInput, { SearchInputProps } from './index';
+
+export default {
+  title: 'Components/SearchInput/DebounceDemo',
+  component: SearchInput,
+  argTypes: {
+    debounceDelay: { control: 'number' },
+    animationDuration: { control: 'number' },
+  },
+} as Meta;
+
+export const DebounceDemo: StoryFn<SearchInputProps> = (args) => {
+  const [value, setValue] = useState('');
+  const [apiCalls, setApiCalls] = useState(0);
+
+  // this simulates an API call — increment counter on each actual onSearch call
+  const handleSearch = (v: string) => {
+    setApiCalls((c) => c + 1);
+    console.log('Simulated API call with:', v);
+  };
+
+  return (
+    <div style={{ padding: 20, maxWidth: 480 }}>
+      <h3>Debounce demo</h3>
+      <p style={{ marginTop: 0 }}>
+        Type fast — <strong>onChange</strong> will run for every character, but{' '}
+        <strong>onSearch</strong> (simulated API call) only runs after debounceDelay
+        ms of inactivity or when you press Enter.
+      </p>
+
+      <SearchInput
+        {...args}
+        value={value}
+        onChange={setValue}
+        onSearch={handleSearch}
+        placeholder={['Search toys', 'Search characters', 'Search products']}
+      />
+
+      <div style={{ marginTop: 12 }}>
+        <strong>API calls:</strong> {apiCalls}{' '}
+        <button style={{ marginLeft: 8 }} onClick={() => setApiCalls(0)}>
+          Reset
+        </button>
+      </div>
+    </div>
+  );
+};
+
+DebounceDemo.args = {
+  debounceDelay: 500,
+  animationDuration: 2000,
+};
